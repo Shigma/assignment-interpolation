@@ -5,13 +5,11 @@
 
 using namespace std;
 
-#define N 20
-#define N1 (N + 1)
 #define pm(x) (1 - (((x) & 1) << 1))
 
-int main() {
+void interpolation(int N, long double max_error[], bool output = false) {
+	int N1 = N + 1;
 	long double source[N1], target[N1];
-	long double EXP2N = exp2l(N);
 	long double unit = 6. / N;
 
 	for (int i = 0; i <= N; ++i) {
@@ -43,7 +41,7 @@ int main() {
 		}
 	}
 
-	// get answer
+	// get answers
 	for (int j = 1; j <= N; ++j) {
 		newton[j] = 0;
 		for (int i = 0; i <= N; ++i) {
@@ -52,21 +50,27 @@ int main() {
 	}
 
 	// lagrange
-	long double lagrange[N1], frac[N1], frac2[N1], coef[N1];
-	frac[0] = 1; frac2[0] = 1;
+	long double lagrange[N1], fact[N1], fact2[N1];
+
+	// calculate factorials
+	fact[0] = 1; fact2[0] = 1;
 	for (int i = 1; i <= N; ++i) {
-		frac[i] = frac[i - 1] * i;
-		frac2[i] = frac2[i - 1] * (2 * i - 1);
+		fact[i] = fact[i - 1] * i;
+		fact2[i] = fact2[i - 1] * (i - .5);
 	}
-	for (int i = 0; i <= N; ++i) {
-		coef[i] = source[i] / frac[i] / frac[N - i] * pm(N - i);
-	}
-	for (int i = 1; i <= N; ++i) {
-		lagrange[i] = 0;
-		for (int j = 0; j <= N; ++j) {
-			lagrange[i] += coef[j] / (2 * (i - j) - 1);
+
+	// get answers
+	for (int j = 1; j <= N; ++j) {
+		lagrange[j] = 0;
+		for (int i = 0; i <= N; ++i) {
+			lagrange[j] += source[i]
+				* fact2[j]
+				* fact2[N - j + 1]
+				* pm(i - j + 1)
+				/ fact[i]
+				/ fact[N - i]
+				/ (j - 0.5 - i);
 		}
-		lagrange[i] *= frac2[i] * frac2[N - i] * pm(N - i + 1) / EXP2N;
 	}
 
 	// spline
@@ -89,26 +93,71 @@ int main() {
 	for (int i = N - 1; i >= 0; --i) {
 		m[i] = A[i] * m[i + 1] + B[i];
 	}
+	// get answers
 	for (int i = 1; i <= N; ++i) {
 		spline[i] = linear[i] - unit / 8 * (m[i] - m[i - 1]);
 	}
 
+	if (output) {
+		string filename = "out_";
+		char number[5] = "";
+		itoa(N, number, 10);
+		filename += number;
+		filename += ".csv";
+		freopen(filename.data(), "w", stdout);
+		cout << "lagrange,newton,linear,spline" << endl;
+	}
+
+	max_error[0] = 0;
+	max_error[1] = 0;
+	max_error[2] = 0;
+	max_error[3] = 0;
+	for (int i = 1; i <= N; ++i) {
+		long double error_lagrange = abs(target[i] - lagrange[i]);
+		long double error_newton = abs(target[i] - newton[i]);
+		long double error_linear = abs(target[i] - linear[i]);
+		long double error_spline = abs(target[i] - spline[i]);
+
+		max_error[0] = max_error[0] > error_lagrange ? max_error[0] : error_lagrange;
+		max_error[1] = max_error[1] > error_newton ? max_error[1] : error_newton;
+		max_error[2] = max_error[2] > error_linear ? max_error[2] : error_linear;
+		max_error[3] = max_error[3] > error_spline ? max_error[3] : error_spline;
+
+		if (output) {
+			cout << abs(target[i] - lagrange[i]) << ","
+					 << abs(target[i] - newton[i]) << ","
+					 << abs(target[i] - linear[i]) << ","
+					 << abs(target[i] - spline[i]) << endl;
+		}
+	}
+
+	if (output) fclose(stdout);
+}
+
+int main() {
 	cout.precision(8);
 	cout.setf(ios::scientific);
 
-	string filename = "out_";
-	char number[5] = "";
-	itoa(N, number, 10);
-	filename += number;
-	filename += ".csv";
-	freopen(filename.data(), "w", stdout);
+	long double errors[10][4];
+	interpolation(10, errors[0]);
+	interpolation(20, errors[1], true);
+	interpolation(30, errors[2], true);
+	interpolation(40, errors[3]);
+	interpolation(50, errors[4]);
+	interpolation(60, errors[5]);
+	interpolation(70, errors[6]);
+	interpolation(80, errors[7]);
+	interpolation(90, errors[8]);
+
+	freopen("errors.csv", "w", stdout);
 	cout << "lagrange,newton,linear,spline" << endl;
 
-	for (int i = 1; i <= N; ++i) {
-		cout << abs(target[i] - lagrange[i]) << ","
-				 << abs(target[i] - newton[i]) << ","
-				 << abs(target[i] - linear[i]) << ","
-				 << abs(target[i] - spline[i]) << endl;
+	for (int i = 0; i < 9; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			if (j) cout << ",";
+			cout << errors[i][j];
+		}
+		cout << endl;
 	}
 
 	fclose(stdout);
