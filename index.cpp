@@ -6,7 +6,7 @@
 using namespace std;
 
 #define N 20
-#define N1 21
+#define N1 (N + 1)
 #define pm(x) (1 - (((x) & 1) << 1))
 
 int main() {
@@ -25,6 +25,30 @@ int main() {
 	long double linear[N1];
 	for (int i = 1; i <= N; ++i) {
 		linear[i] = (source[i] + source[i - 1]) / 2;
+	}
+
+	// newton
+	// "ad" stands for "average deviation"
+	long double newton[N1], ad[N1];
+
+	// initialize ad
+	for (int i = 0; i <= N; i++) {
+		ad[i] = source[i];
+	}
+
+	// calculate ad, O(n^2)
+	for (int j = 0; j < N; ++j) {
+		for (int i = N - 1; i >= j; --i) {
+			ad[i + 1] = (ad[i + 1] - ad[i]) / (j + 1.);
+		}
+	}
+
+	// get answer
+	for (int j = 1; j <= N; ++j) {
+		newton[j] = 0;
+		for (int i = 0; i <= N; ++i) {
+			newton[j] = newton[j] * (j - .5 - N + i) + ad[N - i];
+		}
 	}
 
 	// lagrange
@@ -72,14 +96,17 @@ int main() {
 	cout.precision(8);
 	cout.setf(ios::scientific);
 
-	string filename = "out";
-	filename += itoa(N);
+	string filename = "out_";
+	char number[5] = "";
+	itoa(N, number, 10);
+	filename += number;
 	filename += ".csv";
 	freopen(filename.data(), "w", stdout);
-	cout << "lagrange,linear,spline" << endl;
+	cout << "lagrange,newton,linear,spline" << endl;
 
 	for (int i = 1; i <= N; ++i) {
 		cout << abs(target[i] - lagrange[i]) << ","
+				 << abs(target[i] - newton[i]) << ","
 				 << abs(target[i] - linear[i]) << ","
 				 << abs(target[i] - spline[i]) << endl;
 	}
